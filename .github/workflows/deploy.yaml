@@ -1,0 +1,47 @@
+name: Deploy React App to Ubuntu EC2
+
+on:
+  push:
+    branches:
+      - main # Adjust if using a different branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Setup SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 400 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to EC2
+        run: |
+          ssh -i ~/.ssh/id_rsa ubuntu@${{ secrets.EC2_HOST }} << 'EOF'
+            # Navigate to app directory or clone repo if missing
+            cd ~/convoflow || (git clone git@github.com:varnitj178/ConvoFlow.git ~/convoflow && cd ~/convoflow)
+
+            # Pull latest code
+            git pull origin main
+
+            # Install dependencies and build
+            npm install
+            npm run build
+
+            # Ensure PM2 is installed
+            if ! command -v pm2 &> /dev/null; then
+              sudo npm install -g pm2
+            fi
+
+            # Start or restart the app with PM2
+            pm2 restart react-app || pm2 start "serve -s build -l 3000" --name react-app
+
+            # Ensure PM2 restarts app on reboot
+            pm2 save
+            pm2 startup systemd --user
+          EOF
