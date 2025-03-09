@@ -102,6 +102,8 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 function Messages({ values, msgId }) {
+  console.log("🚀 ~ Messages.js:106 ~ Messages ~ values:", values);
+
   const [style, setStyle] = useState({ display: "none" });
   const [deleteModal, setDeleteModal] = useState(false);
   const classes = useStyles();

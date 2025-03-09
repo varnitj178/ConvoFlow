@@ -9,15 +9,17 @@ import TextField from "@material-ui/core/TextField";
 import LinearProgress from "@material-ui/core/LinearProgress";
 import Typography from "@material-ui/core/Typography";
 import Box from "@material-ui/core/Box";
-import { storage } from "../Firebase/Firebase";
+
 import { useParams } from "react-router-dom";
-import { Timestamp } from "firebase/firestore";
-import { db } from "../Firebase/Firebase";
+import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
+import { collection, addDoc, Timestamp } from "firebase/firestore";
+import { db, storage } from "../Firebase/Firebase";
 
 const useStyles = makeStyles((theme) => ({
   displayImage: {
-    height: "105px",
-    width: "180px",
+    maxHeight: "10rem",
+    maxWidth: "10rem",
+    objectFit: "cover", // Crops while maintaining aspect ratio
   },
   imageName: {
     paddingLeft: "15px",
@@ -43,50 +45,35 @@ function FileUpload({ setState, file }) {
     setState();
   };
 
-  const sendMsg = (downloadURL) => {
-    if (params.id) {
-      const userData = JSON.parse(localStorage.getItem("userDetails"));
+  const sendMsg = async (downloadURL) => {
+    if (!params.id) return;
 
-      if (userData) {
-        const displayName = userData.displayName;
-        const imgUrl = userData.photoURL;
-        const uid = userData.uid;
-        const likeCount = 0;
-        const likes = {};
-        const fireCount = 0;
-        const fire = {};
-        const heartCount = 0;
-        const heart = {};
-        const postImg = downloadURL;
-        const obj = {
-          text: message,
-          timestamp: Timestamp.now(),
-          userImg: imgUrl,
-          userName: displayName,
-          uid: uid,
-          likeCount: likeCount,
-          likes: likes,
-          fireCount: fireCount,
-          fire: fire,
-          heartCount: heartCount,
-          heart: heart,
-          postImg: postImg,
-        };
+    const userData = JSON.parse(localStorage.getItem("userDetails"));
+    if (!userData) return;
 
-        db.collection("channels")
-          .doc(params.id)
-          .collection("messages")
-          .add(obj)
-          .then((res) => {
-            console.log("message sent");
-          })
-          .catch((err) => {
-            console.log(err);
-          });
-      }
+    const obj = {
+      text: message || "", // Send message or empty string
+      timestamp: Timestamp.now(),
+      userImg: userData.photoURL,
+      userName: userData.displayName,
+      uid: userData.uid,
+      likeCount: 0,
+      likes: {},
+      fireCount: 0,
+      fire: {},
+      heartCount: 0,
+      heart: {},
+      postImg: downloadURL, // PDF/ Image URL
+    };
 
-      setMessage("");
+    try {
+      await addDoc(collection(db, "channels", params.id, "messages"), obj);
+      console.log("Message sent successfully");
+    } catch (error) {
+      console.log("Error sending message:", error);
     }
+
+    setMessage(""); // Clear input
   };
 
   const fileObj = URL.createObjectURL(file);
@@ -94,24 +81,29 @@ function FileUpload({ setState, file }) {
   const handleUpload = (e) => {
     e.preventDefault();
     setProgressBar({ display: "block" });
-    const uploadRef = storage.ref(`images/${file.name}`).put(file);
-    uploadRef.on(
+
+    if (!file) {
+      console.log("No file selected");
+      return;
+    }
+
+    const storageRef = ref(storage, `images/${file.name}`);
+    const uploadTask = uploadBytesResumable(storageRef, file);
+
+    uploadTask.on(
       "state_changed",
       (snapshot) => {
-        // Observe state change events such as progress, pause, and resume
-        // Get task progress, including the number of bytes uploaded and the total number of bytes to be uploaded
+        // Update progress bar
         let progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
         setProgress(progress);
       },
       (error) => {
-        console.log(error);
+        console.log("Upload error:", error);
       },
-      () => {
-        // Handle successful uploads on complete
-        // For instance, get the download URL: https://firebasestorage.googleapis.com/...
-        uploadRef.snapshot.ref.getDownloadURL().then((downloadURL) => {
-          sendMsg(downloadURL);
-        });
+      async () => {
+        // Get the download URL and send the message
+        const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+        sendMsg(downloadURL);
         handleClose();
       }
     );

@@ -52,7 +52,7 @@ function DeleteModal({ msgId, text, deleteMsg, handleModal, postImg }) {
 
           <Button
             onClick={handleDelete}
-            color="primary"
+            color="danger"
             autoFocus
             variant="contained"
           >

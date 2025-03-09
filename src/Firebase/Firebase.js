@@ -9,7 +9,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyAFlLAha8NaygGC7RbArb76Zx7mES2zff4",
   authDomain: "chatapplication-new-269b9.firebaseapp.com",
   projectId: "chatapplication-new-269b9",
-  storageBucket: "chatapplication-new-269b9.appspot.com", // Fixed storageBucket typo
+  storageBucket: "chatapplication-new-269b9.firebasestorage.app",
   messagingSenderId: "927110314283",
   appId: "1:927110314283:web:08453ed14087ccdf11ed6e",
   measurementId: "G-38SB1PW2T0",
