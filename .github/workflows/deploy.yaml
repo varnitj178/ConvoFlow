@@ -23,10 +23,17 @@ jobs:
       - name: Deploy to EC2
         run: |
           ssh -i ~/.ssh/id_rsa ubuntu@${{ secrets.EC2_HOST }} << 'EOF'
-            # Navigate to app directory or clone repo if missing
-            cd ~/convoflow || (git clone git@github.com:varnitj178/ConvoFlow.git ~/convoflow && cd ~/convoflow)
+            set -e  # Exit on error
 
-            # Pull latest code
+            # Ensure the repo exists, else clone it
+            if [ ! -d "~/convoflow" ]; then
+              git clone git@github.com:varnitj178/ConvoFlow.git ~/convoflow
+            fi
+
+            cd ~/convoflow
+
+            # Pull the latest code
+            git reset --hard
             git pull origin main
 
             # Install dependencies and build
@@ -38,10 +45,15 @@ jobs:
               sudo npm install -g pm2
             fi
 
-            # Start or restart the app with PM2
-            pm2 restart react-app || pm2 start "serve -s build -l 3000" --name react-app
+            # Restart the app with PM2
+            pm2 describe react-app > /dev/null 2>&1
+            if [ $? -eq 0 ]; then
+              pm2 restart react-app
+            else
+              pm2 start "serve -s build -l 3000" --name react-app
+            fi
 
-            # Ensure PM2 restarts app on reboot
+            # Ensure PM2 restarts the app on reboot
             pm2 save
-            pm2 startup systemd --user
+            sudo pm2 startup systemd -u ubuntu --hp /home/ubuntu
           EOF
