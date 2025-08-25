@@ -20,8 +20,9 @@ jobs:
 
       - name: Install dependencies
         run: |
-          rm -f package-lock.json
-          npm install --legacy-peer-deps
+          rm -rf node_modules package-lock.json
+          npm install
+          npm install ajv@6 ajv-keywords@3 --save-dev
 
       - name: Build app
         run: npm run build
